@@ -1,13 +1,16 @@
 import { login, logout, me, updateUser } from '@/api';
 import router from '@/router';
 import cache from '@/utils/cache';
+import { handleResponse } from '@/utils/response';
 import { defineStore } from 'pinia';
 
 export const useAuthStore = defineStore('authStore', {
     state: () => ({
         user: cache.getItem('currentUser'),
         token: cache.getItem('token'),
-        error: {},
+        message: '',
+        status: 0,
+        success: false,
         role: 'Invitado',
         socketId: cache.getItem('socketId'),
         session: false,
@@ -26,7 +29,8 @@ export const useAuthStore = defineStore('authStore', {
             const response = {
                 loading: this.loading,
                 session: this.session,
-                error: this.error
+                message: this.message,
+                status: this.status
             };
             return response;
         },
@@ -41,39 +45,41 @@ export const useAuthStore = defineStore('authStore', {
         async setSocketId(socketId) {
             cache.setItem('socketId', socketId);
             this.socketId = socketId;
-            console.log('socketId_store', socketId);
         },
         async login(payload) {
-            try {
-                this.loading = true;
-                const { access_token } = await login(payload);
-                cache.setItem('token', access_token);
-                this.token = access_token;
+            this.loading = true;
+            const response = await handleResponse(login(payload));
+            this.success = response.success;
+            this.loading = false;
+            if (response.success) {
+                this.token = response.data.access_token;
+                cache.setItem('token', this.token);
+                this.user = response.data.user;
+                cache.setItem('currentUser', this.user);
+                this.message = 'Validación Correcta Bienvenido';
                 this.session = true;
-            } catch (error) {
-                this.error = error.message;
-                this.user = null;
+            } else {
+                this.message = response.message;
+                this.status = response.status;
                 this.session = false;
-            } finally {
-                this.loading = false;
             }
+            return this.success;
         },
 
         async logout() {
-            try {
-                this.loading = true;
-                const { message } = await logout();
-                this.error = message;
+            this.loading = true;
+            const response = await handleResponse(logout());
+            this.success = response.success;
+            this.loading = false;
+            if (response.success) {
+                this.message = 'Sesión cerrada correctamente';
                 cache.cleanAll();
                 this.user = null;
                 this.session = false;
                 router.push({ name: 'login' });
-                //return this.msg;
-            } catch (error) {
-                this.error = error.message;
-                return this.error;
-            } finally {
-                this.loading = false;
+            } else {
+                this.message = response.message;
+                this.status = response.status;
             }
         },
         async me() {

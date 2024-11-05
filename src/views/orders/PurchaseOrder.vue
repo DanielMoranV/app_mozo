@@ -127,7 +127,7 @@ const savePurchaseOrder = async () => {
     if (response.success == true) {
         toast.add({ severity: 'success', summary: 'Éxito', detail: 'Orden de compra creada correctamente', life: 3000 });
     } else {
-        toast.add({ severity: 'error', summary: 'Error', detail: purchaseOrderStore.msg, life: 3000 });
+        toast.add({ severity: 'error', summary: 'Error', detail: 'No se ha podido crear la orden de compra', life: 3000 });
     }
     isLoading.value = false;
     confirmSavePurchaseOrderDialog.value = false;

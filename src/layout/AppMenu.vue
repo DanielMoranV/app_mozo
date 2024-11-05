@@ -10,6 +10,14 @@ const model = ref([
             { label: 'Dashboard', icon: 'pi pi-fw pi-home', to: '/dashboard' },
             { label: 'Perfil', icon: 'pi pi-fw pi-user', to: '/profile' },
             { label: 'Usuarios', icon: 'pi pi-fw pi-users', to: '/users' },
+            {
+                label: 'Permisos',
+                icon: 'pi pi-fw pi-lock',
+                items: [
+                    { label: 'Roles', icon: 'pi pi-fw pi-verified', to: '/roles' },
+                    { label: 'Asignar Rol', icon: 'pi pi-fw pi-user-plus', to: '/assign-role' }
+                ]
+            },
             { label: 'Empresa', icon: 'pi pi-fw pi-building', to: '/company' }
         ]
     },

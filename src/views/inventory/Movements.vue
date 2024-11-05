@@ -42,8 +42,6 @@ const openNewEntry = () => {
 const handleSaveEntry = async () => {
     // Lógica para manejar el guardado del ingreso
     entryStockMovementDialog.value = false;
-    n;
-    console.log('holi');
     await loadPurchaseOrders();
     // Actualizar la lista de movimientos si es necesario
 };

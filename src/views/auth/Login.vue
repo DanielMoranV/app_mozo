@@ -1,6 +1,7 @@
 <script setup>
 import FloatingConfigurator from '@/components/FloatingConfigurator.vue';
 import { useAuthStore } from '@/stores/authStore';
+import { handleResponseToast } from '@/utils/response';
 import { useToast } from 'primevue/usetoast';
 import { reactive, ref } from 'vue';
 import { useRouter } from 'vue-router';
@@ -31,26 +32,10 @@ const login = async () => {
     if (dataUser.password.length < 6) {
         return toast.add({ severity: 'warn', summary: 'La contraseña debe tener al menos 6 caracteres', life: 3000 });
     }
-    await authStore.login(dataUser);
-    if (authStore.auth.session) {
-        // Mostrar el toast
-
-        toast.add({ severity: 'success', summary: 'Validación Correcta Bienvenido', life: 3000 });
-        authStore.me();
-
+    const success = await authStore.login(dataUser);
+    handleResponseToast(success, authStore.auth.message, authStore.auth.status, toast);
+    if (success) {
         setTimeout(() => router.push('/dashboard'), 2000);
-    } else {
-        switch (authStore.auth.error) {
-            case 'Unauthorized':
-                toast.add({ severity: 'warn', summary: 'Credenciales incorrectas', life: 3000 });
-                break;
-            case 'This action is unauthorized.':
-                toast.add({ severity: 'error', summary: 'Usuario deshabilitado o no registrado', life: 3000 });
-                break;
-            default:
-                toast.add({ severity: 'error', summary: 'Ocurrió un error en el servidor intentelo más tarde.', life: 3000 });
-                break;
-        }
     }
 };
 </script>

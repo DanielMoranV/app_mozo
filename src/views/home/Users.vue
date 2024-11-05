@@ -12,9 +12,6 @@ import { useToast } from 'primevue/usetoast';
 import { onBeforeMount, onMounted, onUnmounted, ref, watch } from 'vue';
 
 const listenForUserEvents = () => {
-    const currentUserId = authStore.getUser.id;
-
-    console.log(useEcho.socketId());
     useEcho
         .private(`users`)
         .listen('UserEvent', (event) => {
@@ -34,6 +31,9 @@ const listenForUserEvents = () => {
         .listen('.user.deleted', (e) => {
             console.log('Usuario eliminado:', e);
         });
+    useEcho.channel('test-channel').listen('test.event', (e) => {
+        console.log('Evento de prueba recibido:', e);
+    });
 };
 
 // Estado de carga
@@ -330,8 +330,6 @@ onMounted(async () => {
 
         // Carga usuarios si no están en la tienda
         users.value = userStore.getUsers || (await userStore.fetchUsers());
-
-        console.log(users.value);
 
         // Carga roles si no están en la tienda
         roles.value = rolesStore.getRolesComboBox || (await rolesStore.fetchRolesComboBox());

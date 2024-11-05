@@ -64,6 +64,16 @@ const router = createRouter({
                     path: '/sales-orders',
                     name: 'sales-orders',
                     component: () => import('@/views/orders/SalesOrder.vue')
+                },
+                {
+                    path: '/roles',
+                    name: 'roles',
+                    component: () => import('@/views/roles/Roles.vue')
+                },
+                {
+                    path: '/assign-role',
+                    name: 'assign-role',
+                    component: () => import('@/views/roles/AssignRole.vue')
                 }
             ]
         },
