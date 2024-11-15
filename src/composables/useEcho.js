@@ -6,7 +6,7 @@ const api_url = import.meta.env.VITE_API_URL;
 const { getToken, setSocketId } = useAuthStore();
 
 window.Pusher = Pusher;
-Pusher.logToConsole = true;
+//Pusher.logToConsole = true;
 
 const broadcaster = import.meta.env.VITE_BROADCAST_DRIVER;
 
@@ -33,7 +33,6 @@ if (broadcaster === 'reverb') {
         }
     };
 } else if (broadcaster === 'pusher') {
-    console.log('pusher');
     echoConfig = {
         broadcaster: 'pusher',
         key: import.meta.env.VITE_PUSHER_APP_KEY,

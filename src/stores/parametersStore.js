@@ -1,13 +1,16 @@
 import { createParameter, deleteParameter, getParameter, getParameters, updateParameter } from '@/api';
 import cache from '@/utils/cache';
+import { handleResponseStore } from '@/utils/response';
 import { defineStore } from 'pinia';
 
 export const useParametersStore = defineStore('parametersStore', {
     state: () => ({
         parameters: cache.getItem('parameters'),
-        msg: {},
+        parameter: cache.getItem('parameter'),
+        message: {},
         status: null,
-        loading: false
+        loading: false,
+        success: false
     }),
 
     getters: {
@@ -22,80 +25,58 @@ export const useParametersStore = defineStore('parametersStore', {
 
     actions: {
         async createParameter(payload) {
-            try {
-                this.loading = true;
-                const { data } = await createParameter(payload);
+            this.loading = true;
+            const { data } = await handleResponseStore(createParameter(payload), this);
+            if (this.success) {
+                if (this.parameters !== null) {
+                    await this.fetchParameters();
+                }
                 this.parameters.push(data);
                 cache.setItem('parameters', this.parameters);
-                return data;
-            } catch (error) {
-                this.msg = error.message || 'error creating';
-                this.parameters = null;
-                this.status = error.status_code || 500;
-                return this.status;
-            } finally {
-                this.loading = false;
+                this.message = 'Parámetros asignados correctamente';
             }
+            return this.success;
         },
         async fetchParameters() {
-            try {
-                this.loading = true;
-                const { data } = await getParameters();
-                cache.setItem('parameters', data);
+            this.loading = true;
+            const { data } = await handleResponseStore(getParameters(), this);
+            if (this.success) {
                 this.parameters = data;
-                return this.parameters;
-            } catch (error) {
-                this.msg = error.message || 'error al cargar datos';
+                cache.setItem('parameters', this.parameters);
+            } else {
                 this.parameters = null;
-                this.status = error.status_code || 500;
-                return this.status;
-            } finally {
-                this.loading = false;
             }
+            return this.success;
         },
         async fetchParameter(id) {
-            try {
-                this.loading = true;
-                const { data } = await getParameter(id);
-                return data;
-            } catch (error) {
-                this.msg = error.message || 'error al cargar datos';
-                this.status = error.status_code || 500;
-                return this.status;
-            } finally {
-                this.loading = false;
+            this.loading = true;
+            const { data } = await handleResponseStore(getParameter(id), this);
+            if (this.success) {
+                this.parameter = data;
+                cache.setItem('parameter', this.parameter);
+            } else {
+                this.parameter = null;
             }
+            return this.success;
         },
         async updateParameter(id) {
-            try {
-                this.loading = true;
-                const { data } = await updateParameter(id);
-                return data;
-            } catch (error) {
-                this.msg = error.message || 'error al cargar datos';
-                this.status = error.status_code || 500;
-                return this.status;
-            } finally {
-                this.loading = false;
+            this.loading = true;
+            const { data } = await handleResponseStore(updateParameter(id), this);
+            if (this.success) {
+                this.parameter = data;
+                cache.setItem('parameter', this.parameter);
             }
+            return this.success;
         },
 
         async deleteParameter(id) {
-            try {
-                this.loading = true;
-                const response = await deleteParameter(id);
-                if (response.success) {
-                    this.parameters = this.parameters.filter((parameter) => parameter.id == id);
-                    cache.setItem('parameters', this.parameters);
-                }
-                return response;
-            } catch (error) {
-                this.msg = error.message;
-                this.status = error.status_code;
-                return { success: false, status: this.status };
-            } finally {
-                this.loading = false;
+            this.loading = true;
+            await handleResponseStore(deleteParameter(id), this);
+            if (this.success) {
+                this.parameters = this.parameters.filter((parameter) => parameter.id == id);
+                cache.setItem('parameters', this.parameters);
             }
+            return this.success;
         }
     }
 });

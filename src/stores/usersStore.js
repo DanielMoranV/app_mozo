@@ -1,5 +1,6 @@
-import { createUser, deleteUser, fetchUsers, getUser, updateProfileUser, updateUser, uploadUsers } from '@/api';
+import { createUser, deleteUser, fetchUsers, updateProfileUser, updateUser, uploadUsers } from '@/api';
 import cache from '@/utils/cache';
+import { handleResponseStore } from '@/utils/response';
 import { defineStore } from 'pinia';
 import { useAuthStore } from './authStore';
 import { useParametersStore } from './parametersStore';
@@ -11,7 +12,8 @@ export const useUsersStore = defineStore('userStore', {
     state: () => ({
         users: cache.getItem('users'),
         user: cache.getItem('user'),
-        msg: {},
+        message: {},
+        success: false,
         status: null,
         loading: false
     }),
@@ -19,16 +21,18 @@ export const useUsersStore = defineStore('userStore', {
         getUsers(state) {
             return state.users;
         },
+        getUser(state) {
+            return state.user;
+        },
         getMsg(state) {
-            return state.msg;
+            return state.message;
         }
     },
     actions: {
         async fetchUsers() {
-            try {
-                const { data } = await fetchUsers();
-                console.log(data);
-                cache.setItem('users', data);
+            this.loading = true;
+            const { data } = await handleResponseStore(fetchUsers(), this);
+            if (this.success) {
                 data.forEach((user) => {
                     if (!user.role) {
                         user.role = { name: 'No Asignado' };
@@ -39,45 +43,26 @@ export const useUsersStore = defineStore('userStore', {
                     }
                 });
                 this.users = data;
-                this.loading = true;
-            } catch (error) {
-                this.msg = error.message;
-                this.users = null;
+                cache.setItem('users', this.users);
+            } else {
+                this.users = [];
             }
-            return this.users;
+            return this.success;
         },
         async createUser(payload) {
-            try {
-                // Establecer la contraseña y la confirmación de la contraseña como el DNI
-                payload.password = payload.dni;
-                payload.password_confirmation = payload.dni;
-
-                // Asignar el nombre del rol a partir del objeto de rol
-                payload.role = payload.role.name;
-                // Crear el usuario y obtener los datos
-                const { data } = await createUser(payload);
-
-                // Obtener los detalles completos del usuario recién creado
-                const { data: user } = await getUser(data.id);
-
-                // Actualizar el estado del store con el nuevo usuario
-                this.user = user;
-                this.users.push(user);
-
-                // Actualizar el caché con la lista de usuarios actualizada
+            this.loading = true;
+            payload.password = payload.dni;
+            payload.password_confirmation = payload.dni;
+            const { data } = await handleResponseStore(createUser(payload), this);
+            if (this.success) {
+                this.user = data;
+                this.users.push(data);
+                this.message = 'Usuario creado correctamente';
                 cache.setItem('users', this.users);
-
-                // Devolver el usuario creado
-                return this.user;
-            } catch (error) {
-                // Manejar cualquier error ocurrido durante el proceso
-                this.msg = error.message || 'Error al crear el usuario';
+            } else {
                 this.user = null;
-                this.status = error.status_code || 500;
-
-                // Devolver el código de estado de error
-                return this.status;
             }
+            return this.success;
         },
         async uploadUsers(payload) {
             const dataUsers = payload.map((user) => ({
@@ -91,44 +76,36 @@ export const useUsersStore = defineStore('userStore', {
             }));
 
             const requestData = { users: dataUsers };
-
-            try {
-                const { data } = await uploadUsers(requestData);
+            const { data } = await handleResponseStore(uploadUsers(requestData), this);
+            if (this.success) {
                 data.success.forEach((element) => this.users.push(element));
                 cache.setItem('users', this.users);
-                let currentUser = authStore.getUser;
-                data.success.forEach(async (element) => {
-                    let parameters = {
-                        warehouse_id: currentUser.parameter.warehouse_id,
-                        sunat_send: currentUser.parameter.sunat_send,
-                        locked: true,
-                        company_id: currentUser.parameter.company_id,
-                        user_id: element.id
-                    };
+                // let currentUser = authStore.getUser;
+                // data.success.forEach(async (element) => {
+                //     let parameters = {
+                //         warehouse_id: currentUser.parameter.warehouse_id,
+                //         sunat_send: currentUser.parameter.sunat_send,
+                //         locked: true,
+                //         company_id: currentUser.parameter.company_id,
+                //         user_id: element.id
+                //     };
 
-                    await parametersStore.createParameter(parameters);
-                });
-                this.msg = data.message;
-                return data;
-            } catch (error) {
-                console.log(error);
-                this.msg = error.message;
-                this.users = null;
-                this.status = error.status_code;
-                return this.status;
+                //     await parametersStore.createParameter(parameters);
+                // });
             }
+            return this.success;
         },
         async updateUser(payload, id) {
-            try {
-                const { data } = await updateUser(payload, id);
-                cache.setItem('user', data);
+            this.loading = true;
+            const { data } = await handleResponseStore(updateUser(payload, id), this);
+            if (this.success) {
                 this.user = data;
-                return this.user;
-            } catch (error) {
-                this.msg = error.message;
-                this.status = error.status_code;
-                return this.status;
+                cache.setItem('user', this.user);
+                this.users = this.users.map((user) => (user.id === id ? data : user));
+                cache.setItem('users', this.users);
+                this.message = 'Usuario actualizado correctamente';
             }
+            return this.success;
         },
         async updateListUser(payload, id) {
             // Encuentra el índice del usuario en la lista de usuarios almacenada en `this.users`
@@ -146,43 +123,36 @@ export const useUsersStore = defineStore('userStore', {
             }
         },
         async updateProfileUser(payload, id) {
-            try {
-                const data = await updateProfileUser(payload, id);
+            this.loading = true;
+            const { data } = await handleResponseStore(updateProfileUser(payload, id), this);
+            if (this.success) {
                 cache.setItem('user', data);
                 this.user = data;
-            } catch (error) {
-                this.msg = error.message;
-                this.status = error.status_code;
-                return this.status;
             }
+            return this.success;
         },
         async deleteUser(id) {
-            try {
-                const response = await deleteUser(id);
-
-                if (response.success) {
-                    if (response.message == 'Usuario deshabilitado exitosamente') {
+            this.loading = true;
+            const { data } = await handleResponseStore(deleteUser(id), this);
+            if (this.success) {
+                if (this.success) {
+                    if (data == 'Usuario deshabilitado exitosamente') {
                         // Encuentra el usuario por id y actualiza la propiedad is_active a false
-                        console.log(response.message);
                         const userIndex = this.users.findIndex((user) => user.id === id);
                         if (userIndex !== -1) {
                             this.users[userIndex].is_active = false;
                         }
+                        this.message = data;
                     } else {
                         // Eliminar el usuario del estado local si fue eliminado físicamente
                         this.users = this.users.filter((user) => user.id !== id);
+                        this.message = 'Usuario eliminado exitosamente';
                     }
                     // Actualizar el caché con la lista de usuarios actualizada
                     cache.setItem('users', this.users);
                 }
-                console.log(response);
-                return response;
-            } catch (error) {
-                console.log(error);
-                this.msg = error.message;
-                this.status = error.status_code;
-                return { success: false, status: this.status };
             }
+            return this.success;
         }
     }
 });

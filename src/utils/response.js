@@ -8,17 +8,27 @@ export const handleResponseToast = (success, message, status, toast) => {
     }
 };
 
-export async function handleResponse(promise) {
+export async function handleResponseStore(promise, store) {
     try {
         const { data } = await promise;
         if (import.meta.env.VITE_DEBUG) {
-            console.log(data);
+            console.info('----MODO DEBUG----');
+            console.log('data', data);
         }
-        return { success: true, data };
+        store.loading = false;
+        store.message = 'Operación exitosa';
+        store.success = true;
+        store.status = 200;
+        return { data };
     } catch (error) {
         if (import.meta.env.VITE_DEBUG) {
-            console.log(error);
+            console.info('----MODO DEBUG----');
+            console.log('error', error);
         }
-        return { success: false, message: error.message, status: error.status_code || 500 };
+        store.loading = false;
+        store.message = error.message || 'Error desconocido';
+        store.status = error.status_code || 500;
+        store.success = false;
+        return { data: null };
     }
 }

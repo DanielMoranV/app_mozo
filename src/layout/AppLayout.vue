@@ -1,9 +1,18 @@
 <script setup>
 import { useLayout } from '@/layout/composables/layout';
+import { useAuthStore } from '@/stores/authStore';
+import { useToast } from 'primevue/usetoast';
 import { computed, onMounted, ref, watch } from 'vue';
+import { useRouter } from 'vue-router';
 import AppFooter from './AppFooter.vue';
 import AppSidebar from './AppSidebar.vue';
 import AppTopbar from './AppTopbar.vue';
+
+const authStore = useAuthStore();
+const toast = useToast();
+const router = useRouter();
+
+const user = ref('');
 
 const { layoutConfig, layoutState, isSidebarActive, resetMenu } = useLayout();
 
@@ -62,9 +71,16 @@ const unbindOutsideClickListener = () => {
     }
 };
 
-onMounted(() => {
+onMounted(async () => {
     if (isSidebarActive.value) {
         bindOutsideClickListener();
+    }
+    user.value = await authStore.getUser;
+    if (user.value == null) {
+        setTimeout(() => {
+            toast.add({ severity: 'error', summary: 'Error', detail: 'Usuario no logueado, inicie sesión para continuar', life: 3000 });
+        }, 1000);
+        router.push('/');
     }
 });
 </script>

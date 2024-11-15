@@ -1,5 +1,6 @@
 <script setup>
 import { useRolesStore } from '@/stores/rolesStore';
+import { handleResponseToast } from '@/utils/response';
 import { FilterMatchMode } from '@primevue/core/api';
 import { useToast } from 'primevue/usetoast';
 import { onBeforeMount, onMounted, ref } from 'vue';
@@ -24,7 +25,10 @@ const initFilters = () => {
 };
 
 onMounted(async () => {
-    roles.value = rolesStore.getRoles || (await rolesStore.fetchRoles());
+    if (!rolesStore.getRoles) {
+        await rolesStore.fetchRoles();
+    }
+    roles.value = rolesStore.getRoles;
 });
 
 const openNew = () => {
@@ -47,49 +51,35 @@ const isFormValid = () => {
 
 const saveRole = async () => {
     submitted.value = true;
+
     if (!isFormValid()) {
         return;
     }
 
     isLoading.value = true;
 
-    try {
-        if (role.value.id) {
-            await updateRole();
-        } else {
-            await createRole();
-        }
+    const action = role.value.id ? updateRole : createRole;
+    await action();
 
-        roleDialog.value = false;
-        role.value = {};
-    } catch (error) {
-        console.error(error);
-        toast.add({ severity: 'error', summary: 'Error', detail: 'Error al guardar rol', life: 3000 });
-    } finally {
-        isLoading.value = false;
-    }
+    roleDialog.value = false;
+    role.value = {};
+    isLoading.value = false;
 };
+
 const updateRole = async () => {
-    try {
-        const response = await rolesStore.updateRole(role.value, role.value.id);
+    const success = await rolesStore.updateRole(role.value, role.value.id);
+    handleResponseToast(success, rolesStore.message, rolesStore.status, toast);
+    if (success) {
         const roleIndex = roles.value.findIndex((r) => r.id === role.value.id);
-        roles.value[roleIndex] = response;
-        toast.add({ severity: 'success', summary: 'Éxito', detail: 'Rol actualizado', life: 3000 });
-    } catch (error) {
-        console.error(error);
-        toast.add({ severity: 'error', summary: 'Error', detail: 'Error al actualizar rol', life: 3000 });
+        roles.value[roleIndex] = rolesStore.role;
     }
 };
 
 const createRole = async () => {
-    try {
-        await rolesStore.createRole(role.value);
-        toast.add({ severity: 'success', summary: 'Éxito', detail: 'Rol creado', life: 3000 });
-        roleDialog.value = false;
-        role.value = {};
-    } catch (error) {
-        toast.add({ severity: 'error', summary: 'Error', detail: 'Error al crear rol', life: 3000 });
-    }
+    const success = await rolesStore.createRole(role.value);
+    handleResponseToast(success, rolesStore.message, rolesStore.status, toast);
+    roleDialog.value = false;
+    role.value = {};
 };
 
 const editRole = (data) => {
@@ -104,15 +94,12 @@ const confirmDeleteRole = (data) => {
 
 const deleteRole = async () => {
     isLoading.value = true;
-    const response = await rolesStore.deleteRole(role.value.id);
-    console.log(response);
-    if (response) {
+    const success = await rolesStore.deleteRole(role.value.id);
+    handleResponseToast(success, rolesStore.message, rolesStore.status, toast);
+    if (success) {
         roles.value = roles.value.filter((r) => r.id !== role.value.id);
         deleteRoleDialog.value = false;
         role.value = {};
-        toast.add({ severity: 'success', summary: 'Éxito', detail: 'Rol eliminado', life: 3000 });
-    } else {
-        toast.add({ severity: 'error', summary: 'Error', detail: 'Error al eliminar rol', life: 3000 });
     }
     isLoading.value = false;
 };
@@ -128,7 +115,7 @@ onBeforeMount(() => {
                 <Button label="Nuevo" icon="pi pi-plus" severity="success" class="mr-2" @click="openNew" />
             </template>
         </Toolbar>
-        <DataTable :value="roles" :loading="loading" :filters="filters" :paginator="true" :rows="10" :rowsPerPageOptions="[10, 20, 50]" dataKey="id" :selection="selectedRoles">
+        <DataTable :value="roles" :loading="rolesStore.loading" :filters="filters" :paginator="true" :rows="10" :rowsPerPageOptions="[10, 20, 50]" dataKey="id" :selection="selectedRoles">
             <Column field="id" header="ID" />
             <Column field="name" header="Nombre">
                 <template #body="{ data }">
@@ -168,7 +155,7 @@ onBeforeMount(() => {
             </div>
             <template #footer>
                 <Button label="No" icon="pi pi-times" text @click="deleteRoleDialog = false" />
-                <Button label="Sí" icon="pi pi-check" text @click="deleteRole" />
+                <Button label="Sí" icon="pi pi-check" text @click="deleteRole" :loading="isLoading" />
             </template>
         </Dialog>
     </div>

@@ -1,7 +1,7 @@
 import { login, logout, me, updateUser } from '@/api';
 import router from '@/router';
 import cache from '@/utils/cache';
-import { handleResponse } from '@/utils/response';
+import { handleResponseStore } from '@/utils/response';
 import { defineStore } from 'pinia';
 
 export const useAuthStore = defineStore('authStore', {
@@ -48,72 +48,58 @@ export const useAuthStore = defineStore('authStore', {
         },
         async login(payload) {
             this.loading = true;
-            const response = await handleResponse(login(payload));
-            this.success = response.success;
-            this.loading = false;
-            if (response.success) {
-                this.token = response.data.access_token;
+            const { data } = await handleResponseStore(login(payload), this);
+            if (this.success) {
+                this.token = data.access_token;
+                this.user = data.user;
                 cache.setItem('token', this.token);
-                this.user = response.data.user;
                 cache.setItem('currentUser', this.user);
                 this.message = 'Validación Correcta Bienvenido';
-                this.session = true;
-            } else {
-                this.message = response.message;
-                this.status = response.status;
-                this.session = false;
             }
+            this.session = this.success;
             return this.success;
         },
 
         async logout() {
             this.loading = true;
-            const response = await handleResponse(logout());
-            this.success = response.success;
-            this.loading = false;
-            if (response.success) {
-                this.message = 'Sesión cerrada correctamente';
-                cache.cleanAll();
-                this.user = null;
-                this.session = false;
-                router.push({ name: 'login' });
-            } else {
-                this.message = response.message;
-                this.status = response.status;
-            }
+            const { data } = await handleResponseStore(logout(), this);
+            this.message = 'Sesión cerrada correctamente';
+            cache.cleanAll();
+            this.user = data;
+            this.session = false;
+            this.socketId = null;
+            this.token = null;
+            router.push({ name: 'login' });
         },
         async me() {
-            try {
-                const { data } = await me();
-                cache.setItem('currentUser', data.user);
+            this.loading = true;
+            const { data } = await handleResponseStore(me(), this);
+            if (this.success) {
                 this.user = data.user;
+                cache.setItem('currentUser', this.user);
                 this.session = true;
-                return this.user;
-            } catch (error) {
-                this.error = error.message;
-                this.user = null;
-                this.session = false;
-                return this.error;
+                this.token = data.access_token;
+                cache.setItem('token', this.token);
             }
+            this.session = this.success;
+            return this.success;
         },
         async updateUser(payload) {
             this.user = {
                 ...this.user,
                 ...payload
             };
-            cache.setItem('currentUser', this.user);
+            await cache.setItem('currentUser', this.user);
         },
         async updateProfile(payload, id) {
-            try {
-                const { data } = await updateUser(payload, id);
-                cache.setItem('currentUser', data);
+            this.loading = true;
+            const { data } = await handleResponseStore(updateUser(payload, id), this);
+            if (this.success) {
                 this.user = data;
-                return this.user;
-            } catch (error) {
-                this.msg = error.message;
-                this.status = error.status_code;
-                return this.status;
+                this.message = 'Usuario actualizado correctamente';
+                cache.setItem('currentUser', this.user);
             }
+            return this.success;
         }
     }
 });

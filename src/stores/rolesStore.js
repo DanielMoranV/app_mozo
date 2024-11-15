@@ -1,14 +1,16 @@
 import { assignRole, createRole, deleteRole, getRoles, updateRole } from '@/api';
 import cache from '@/utils/cache';
+import { handleResponseStore } from '@/utils/response';
 import { defineStore } from 'pinia';
 
 export const useRolesStore = defineStore('rolesStore', {
     state: () => ({
         roles: cache.getItem('roles'),
-        msg: {},
+        message: {},
         loading: false,
         role: cache.getItem('role'),
-        status: null
+        status: null,
+        success: false
     }),
     getters: {
         getRolesComboBox(state) {
@@ -24,87 +26,66 @@ export const useRolesStore = defineStore('rolesStore', {
     },
     actions: {
         async fetchRoles() {
-            try {
-                this.loading = true;
-                const { data } = await getRoles();
-                cache.setItem('roles', data);
+            this.loading = true;
+            const { data } = await handleResponseStore(getRoles(), this);
+            if (this.success) {
                 this.roles = data;
-                this.loading = false;
-            } catch (error) {
-                this.msg = error.message;
+                cache.setItem('roles', this.roles);
+            } else {
                 this.roles = null;
             }
-            return this.roles;
+            return this.success;
         },
         async createRole(payload) {
-            try {
-                this.loading = true;
-                const { data } = await createRole(payload);
+            this.loading = true;
+            const { data } = await handleResponseStore(createRole(payload), this);
+            if (this.success) {
                 this.roles.push(data);
                 cache.setItem('roles', this.roles);
                 return data;
-            } catch (error) {
-                this.msg = error.message || 'Error al crear el rol';
-                this.role = null;
-                this.status = error.status_code || 500;
-                return this.status;
-            } finally {
-                this.loading = false;
             }
+            return this.success;
         },
         async updateRole(payload, id) {
-            try {
-                this.loading = true;
-                const { data } = await updateRole(payload, id);
+            this.loading = true;
+            const { data } = await handleResponseStore(updateRole(payload, id), this);
+            if (this.success) {
+                this.role = data;
                 this.roles = this.roles.map((role) => (role.id === id ? data : role));
                 cache.setItem('roles', this.roles);
-                return data;
-            } catch (error) {
-                this.msg = error.message || 'Error al actualizar el rol';
-                this.role = null;
-                this.status = error.status_code || 500;
-                return this.status;
-            } finally {
-                this.loading = false;
             }
+            return this.success;
         },
         async fetchRolesComboBox() {
-            try {
-                const { data } = await getRoles();
+            const { data } = await handleResponseStore(getRoles(), this);
+            if (this.success) {
                 cache.setItem('roles', data);
                 this.roles = data;
-                const rolesCbx = data.map((role) => {
+                data.map((role) => {
                     return { label: role.name.toUpperCase(), value: role.id };
                 });
-                return rolesCbx;
-            } catch (error) {
-                this.msg = error.message;
-                return null;
             }
+            return this.success;
         },
         async assignRole(payload) {
-            try {
-                this.msg = await assignRole(payload);
-            } catch (error) {
-                this.msg = error.message;
+            this.loading = true;
+            const { data } = await handleResponseStore(assignRole(payload), this);
+            if (this.success) {
+                this.role = data;
+                cache.setItem('role', this.role);
+                this.message = 'Rol asignado correctamente';
             }
-            return this.msg;
+            return this.success;
         },
         async deleteRole(id) {
-            try {
-                this.loading = true;
-                await deleteRole(id);
+            this.loading = true;
+            await handleResponseStore(deleteRole(id), this);
+            if (this.success) {
                 this.roles = this.roles.filter((role) => role.id !== id);
                 cache.setItem('roles', this.roles);
-                return true;
-            } catch (error) {
-                console.log(error);
-                this.msg = error.message;
-                this.status = error.status_code || 500;
-                return this.status;
-            } finally {
-                this.loading = false;
+                this.message = 'Rol eliminado correctamente';
             }
+            return this.success;
         }
     }
 });

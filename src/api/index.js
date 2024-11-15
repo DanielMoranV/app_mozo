@@ -25,8 +25,8 @@ export const deleteUser = (id) => axios.delete(`/users/${id}`);
 // Roles
 export const getRoles = () => axios.get('/roles');
 export const createRole = (payload) => axios.post('/roles', payload);
-export const updateRole = (payload, id) => axios.put(`/roles/${id}`, payload);
-export const deleteRole = (id) => axios.delete(`/roles/${id}`);
+export const updateRole = (payload, id) => axios.put(`/roles/role/${id}`, payload);
+export const deleteRole = (id) => axios.delete(`/roles/role/${id}`);
 export const assignRole = (payload) => axios.put('/roles/user', payload);
 export const removeRole = (payload) => axios.delete('/roles/user', payload);
 

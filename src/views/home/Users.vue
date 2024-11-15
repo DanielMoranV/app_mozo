@@ -2,9 +2,9 @@
 import useEcho from '@/composables/useEcho';
 import { useAuthStore } from '@/stores/authStore';
 import { useParametersStore } from '@/stores/parametersStore';
-import { useRolesStore } from '@/stores/rolesStore';
 import { useUsersStore } from '@/stores/usersStore';
 import { exportToExcel } from '@/utils/excelUtils';
+import { handleResponseToast } from '@/utils/response';
 import { capitalizeName, findIndexById, restrictToNumbers, validateDNI, validateEmail, validatePhone } from '@/utils/validationUtils';
 import { FilterMatchMode } from '@primevue/core/api';
 import ExcelJS from 'exceljs';
@@ -44,7 +44,6 @@ const loadingUsers = ref(false);
 const userStore = useUsersStore();
 const authStore = useAuthStore();
 const parametersStore = useParametersStore();
-const rolesStore = useRolesStore();
 const toast = useToast();
 
 const users = ref(null);
@@ -53,7 +52,6 @@ const deleteUserDialog = ref(false);
 const deleteUsersDialog = ref(false);
 const user = ref({});
 const selectedUsers = ref(null);
-const roles = ref([]);
 const dt = ref(null);
 const filters = ref({});
 const submitted = ref(false);
@@ -125,11 +123,11 @@ const exportExcel = async () => {
 
 // Abrir diálogo de nuevo usuario
 const openNew = () => {
-    user.value = {
-        role: {
-            id: 2
-        }
-    };
+    // user.value = {
+    //     role: {
+    //         id: 2
+    //     }
+    // };
     submitted.value = false;
     userDialog.value = true;
 };
@@ -172,25 +170,11 @@ const saveUser = async () => {
 
 // Actualizar usuario
 const updateUser = async () => {
-    try {
-        // Actualiza el usuario en el store
-        await userStore.updateUser(user.value, user.value.id);
+    // Actualiza el usuario en el store
+    const success = await userStore.updateUser(user.value, user.value.id);
+    handleResponseToast(success, userStore.message, userStore.status, toast);
 
-        // Encuentra el nombre del rol
-        const role = roles.value.find((role) => role.value === user.value.role.id);
-
-        // Verifica si se encontró el rol
-        if (!role) {
-            throw new Error('Rol no encontrado');
-        }
-
-        // Prepara el payload para asignar el rol
-        const payload = { dni: user.value.dni, role_name: role.label };
-        await rolesStore.assignRole(payload);
-
-        // Actualiza el nombre del rol en el usuario
-        user.value.role.name = role.label;
-
+    if (success) {
         // Actualiza la lista de usuarios
         const userIndex = findIndexById(user.value.id, users.value);
         if (userIndex !== -1) {
@@ -198,47 +182,29 @@ const updateUser = async () => {
         } else {
             throw new Error('Usuario no encontrado en la lista');
         }
-
-        // Actualiza el usuario en el store
-        userStore.updateListUser(user.value, user.value.id);
-
-        // Muestra un mensaje de éxito
-        toast.add({ severity: 'success', summary: 'Éxito', detail: 'Usuario actualizado', life: 3000 });
-    } catch (error) {
-        // Maneja cualquier error
-        console.error('Error al actualizar el usuario:', error);
-        toast.add({ severity: 'error', summary: 'Error', detail: error.message, life: 3000 });
     }
 };
 
 // Crear usuario
 const createUser = async () => {
-    // Encuentra el nombre del rol
-    const role = roles.value.find((role) => role.value === user.value.role.id);
-    user.value.role.name = role.label;
-    const response = await userStore.createUser(user.value);
-    if (response == 422 || response == 500) {
-        toast.add({ severity: 'error', summary: 'Error', detail: userStore.getMsg, life: 3000 });
-        isLoading.value = false;
-        loadingUsers.value = false;
-        userDialog.value = false;
-        user.value = {};
-        return;
+    const success = await userStore.createUser(user.value);
+    handleResponseToast(success, userStore.message, userStore.status, toast);
+    if (success) {
+        let currentUser = authStore.getUser;
+        let parameters = {
+            warehouse_id: currentUser.parameter.warehouse_id,
+            sunat_send: currentUser.parameter.sunat_send,
+            locked: true,
+            company_id: currentUser.parameter.company_id,
+            user_id: userStore.getUser.id
+        };
+        const sucessParameter = await parametersStore.createParameter(parameters);
+        handleResponseToast(sucessParameter, parametersStore.message, parametersStore.status, toast);
     }
-    let currentUser = authStore.getUser;
-    let parameters = {
-        warehouse_id: currentUser.parameter.warehouse_id,
-        sunat_send: currentUser.parameter.sunat_send,
-        locked: true,
-        company_id: currentUser.parameter.company_id,
-        user_id: response.id
-    };
-
-    await parametersStore.createParameter(parameters);
-
-    user.value = response;
-
-    toast.add({ severity: 'success', summary: 'Éxito', detail: 'Nuevo usuario agregado', life: 3000 });
+    loadingUsers.value = false;
+    userDialog.value = false;
+    user.value = {};
+    user.value = userStore.getUser;
 };
 
 // Editar usuario
@@ -256,19 +222,16 @@ const confirmDeleteUser = (editUser) => {
 // Eliminar usuario
 const deleteUser = async () => {
     isLoading.value = true;
-    const response = await userStore.deleteUser(user.value.id);
-    if (response.success == true) {
-        if (response.message == 'Usuario deshabilitado exitosamente') {
-            toast.add({ severity: 'success', summary: 'Éxito', detail: 'Usuario deshabilitado', life: 3000 });
+    const success = await userStore.deleteUser(user.value.id);
+    handleResponseToast(success, userStore.message, userStore.status, toast);
+    if (success) {
+        if (userStore.message == 'Usuario deshabilitado exitosamente') {
+            users.value = users.value.filter((val) => val.id !== user.value.id);
         } else {
             users.value = users.value.filter((val) => val.id !== user.value.id);
-            toast.add({ severity: 'success', summary: 'Éxito', detail: 'Usuario Eliminado', life: 3000 });
         }
-
         deleteUserDialog.value = false;
         user.value = {};
-    } else {
-        toast.add({ severity: 'error', summary: 'Error', detail: 'Error al elimar usuario', life: 3000 });
     }
     isLoading.value = false;
 };
@@ -293,8 +256,8 @@ const deleteSelectedUsers = async () => {
     await Promise.all(
         selectedUserIds.map(async (id) => {
             try {
-                const response = await userStore.deleteUser(id);
-                if (response.success) {
+                const success = await userStore.deleteUser(id);
+                if (success) {
                     successfulDeletes.push(id);
                 } else {
                     failedDeletes.push(id);
@@ -325,19 +288,10 @@ onBeforeMount(() => {
 
 onMounted(async () => {
     listenForUserEvents();
-    try {
-        loadingUsers.value = true;
-
-        // Carga usuarios si no están en la tienda
-        users.value = userStore.getUsers || (await userStore.fetchUsers());
-
-        // Carga roles si no están en la tienda
-        roles.value = rolesStore.getRolesComboBox || (await rolesStore.fetchRolesComboBox());
-    } catch (error) {
-        console.error('Error al cargar los datos:', error);
-    } finally {
-        loadingUsers.value = false;
+    if (!userStore.getUsers) {
+        await userStore.fetchUsers();
     }
+    users.value = userStore.getUsers;
 });
 onUnmounted(() => {
     useEcho.leaveChannel('users');
@@ -455,7 +409,7 @@ watch(() => user.value.phone, validatePhoneField);
             v-model:selection="selectedUsers"
             dataKey="id"
             :paginator="true"
-            :loading="loadingUsers"
+            :loading="userStore.loading"
             :rows="10"
             :filters="filters"
             paginatorTemplate="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink CurrentPageReport RowsPerPageDropdown"
@@ -522,10 +476,6 @@ watch(() => user.value.phone, validatePhoneField);
                 <label for="phone" class="block font-bold mb-1">Teléfono</label>
                 <InputText id="phone" v-model.trim="user.phone" @input="validatePhoneField" @keypress="restrictToNumbers" required autofocus :invalid="submitted && !isPhoneValid" maxlength="9" fluid />
                 <small class="text-red-500" v-if="submitted && !isPhoneValid">Teléfono es inválido o requerido.</small>
-            </div>
-            <div class="mb-3">
-                <label for="rol" class="block font-bold mb-1">Roles</label>
-                <Select id="rol" v-model="user.role.id" :options="roles" optionValue="value" optionLabel="label" placeholder="Selecciona Rol" fluid></Select>
             </div>
             <template #footer>
                 <Button label="Cancelar" icon="pi pi-times" text @click="hideDialog" />

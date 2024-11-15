@@ -83,7 +83,7 @@ const login = async () => {
                             <span class="font-medium no-underline ml-2 text-right cursor-pointer text-primary">Forgot password?</span>
                         </div> -->
                         <Toast />
-                        <Button v-if="!authStore.auth.loading" label="Iniciar Sesión" class="w-full p-3 text-xl" @click="login"></Button>
+                        <Button v-if="!authStore.getLoading" label="Iniciar Sesión" class="w-full p-3 text-xl" @click="login"></Button>
                         <div v-else class="flex justify-content-center mt-8">
                             <ProgressSpinner style="width: 50px; height: 50px" strokeWidth="8" fill="var(--surface-ground)" animationDuration=".5s" aria-label="Custom ProgressSpinner" />
                         </div>

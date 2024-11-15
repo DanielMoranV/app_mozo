@@ -5,7 +5,7 @@ import { useToast } from 'primevue/usetoast';
 import { onMounted, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 
-import { handleApiResponse } from '@/utils/response';
+import { handleResponseToast } from '@/utils/response';
 import { capitalizeName, restrictToNumbers, validateDNI, validateEmail, validatePhone } from '@/utils/validationUtils';
 
 const api_url = import.meta.env.VITE_API_URL;
@@ -91,16 +91,12 @@ const updateUser = async () => {
         phone: user.value.phone
     };
 
-    try {
-        const response = await authStore.updateProfile(payload, user.value.id);
+    const success = await authStore.updateProfile(payload, user.value.id);
+    handleResponseToast(success, authStore.auth.message, authStore.auth.status, toast);
+    if (success) {
         authStore.updateUser(user.value);
-        handleApiResponse(response, toast);
-    } catch (error) {
-        console.error(error);
-        toast.add({ severity: 'error', summary: 'Error', detail: 'Error al guardar usuario', life: 3000 });
-    } finally {
-        isLoading.value = false;
     }
+    isLoading.value = false;
 };
 
 // Actualizar contraseña
@@ -109,15 +105,10 @@ const updatePassword = async () => {
     const password = passwordInput.value;
     const confirmPassword = confirmPasswordInput.value;
     if (password === confirmPassword) {
-        try {
-            const response = await authStore.updateProfile({ password: password }, user.value.id);
+        const success = await authStore.updateProfile({ password: password }, user.value.id);
+        handleResponseToast(success, authStore.auth.message, authStore.auth.status, toast);
+        if (success) {
             authStore.updateUser(user.value);
-            handleApiResponse(response, toast);
-        } catch (error) {
-            console.error(error);
-            toast.add({ severity: 'error', summary: 'Error', detail: 'Error al actualizar la contraseña', life: 3000 });
-        } finally {
-            isLoadingPassword.value = false;
         }
     } else {
         toast.add({ severity: 'error', summary: 'Error', detail: 'Contraseña de confirmación no coincide', life: 3000 });
@@ -140,9 +131,12 @@ const onUpload = async (request) => {
             ...user.value,
             url_photo_profile: urlPhotoProfile
         };
-        authStore.updateUser(payload);
-        user.value.url_photo_profile = storage_url + urlPhotoProfile;
-        toast.add({ severity: 'success', summary: 'Foto de perfil actualizada correctamente', life: 4000 });
+        const success = await authStore.updateProfile(payload, user.value.id);
+        handleResponseToast(success, 'Foto de perfil actualizada correctamente', 'success', toast);
+        if (success) {
+            authStore.updateUser(payload);
+            user.value.url_photo_profile = storage_url + urlPhotoProfile;
+        }
     } catch (error) {
         console.error('Error al procesar la respuesta', error);
         toast.add({ severity: 'error', summary: 'Error', detail: 'Error al procesar la respuesta', life: 3000 });
@@ -151,19 +145,22 @@ const onUpload = async (request) => {
     }
 };
 
+// Función para obtener la URL de la foto de perfil
+const getProfilePhotoUrl = (urlPhoto, defaultPhoto, storageUrl) => {
+    if (urlPhoto !== defaultPhoto && !urlPhoto.includes(storageUrl)) {
+        return `${storageUrl}${urlPhoto}`;
+    }
+    return urlPhoto;
+};
+
 // Cargar datos del usuario
 onMounted(() => {
     user.value = authStore.getUser;
-
     const defaultProfile = '/images/profile.png';
     const protoProfile = user.value.url_photo_profile ?? defaultProfile;
 
-    // Si el perfil no contiene la URL de almacenamiento y no es la imagen predeterminada
-    if (protoProfile !== defaultProfile && !protoProfile.includes(storage_url)) {
-        user.value.url_photo_profile = `${storage_url}${protoProfile}`;
-    } else {
-        user.value.url_photo_profile = protoProfile;
-    }
+    // Obtener la URL de la foto de perfil
+    user.value.url_photo_profile = getProfilePhotoUrl(protoProfile, defaultProfile, storage_url);
     urlPhotoProfile.value = api_url + '/users/' + user.value.id + '/photoprofile';
 });
 
