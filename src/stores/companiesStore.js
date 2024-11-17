@@ -1,70 +1,75 @@
-import { createCompany, deleteCompany, getCompanies, getCompany, updateCompany, updateLogoCompany } from '@/api';
+import { createCompany, deleteCompany, getCompanies, updateCompany, updateLogoCompany } from '@/api';
 import cache from '@/utils/cache';
+import { handleResponseStore } from '@/utils/response';
 import { defineStore } from 'pinia';
 
 export const useCompaniesStore = defineStore('companyStore', {
     state: () => ({
         companies: cache.getItem('companies'),
         company: cache.getItem('company'),
-        msg: {},
-        status: null,
-        loading: false
+        message: '',
+        status: 0,
+        loading: false,
+        success: false
     }),
     actions: {
-        async getCompanies() {
-            try {
-                const { data } = await getCompanies();
-                cache.setItem('companies', data);
+        async fetchCompanies() {
+            this.loading = true;
+            const { data } = await handleResponseStore(getCompanies(), this);
+            if (this.success) {
                 this.companies = data;
-                this.loading = true;
-            } catch (error) {
-                this.msg = error.message;
-                this.companies = null;
+                cache.setItem('companies', this.companies);
             }
-            return this.companies;
+            this.loading = false;
+            return this.success;
         },
         async createCompany(payload) {
-            try {
-                const { data } = await createCompany(payload);
-                const company = await getCompany(data.id);
-                this.company = company.data;
-            } catch (error) {
-                this.msg = error.message;
+            this.loading = true;
+            const { data } = await handleResponseStore(createCompany(payload), this);
+            if (this.success) {
+                this.company = data;
+                cache.setItem('company', this.company);
+                this.message = 'Empresa creada correctamente';
+                if (!this.companies.find((company) => company.id === data.id)) {
+                    this.companies.push(data);
+                    cache.setItem('companies', this.companies);
+                }
+            } else {
                 this.company = null;
-                this.status = error.status_code;
-                return this.status;
             }
-            return this.company;
+            this.loading = false;
+            return this.success;
         },
         async updateCompany(payload, id) {
-            try {
-                const data = await updateCompany(payload, id);
+            this.loading = true;
+            const { data } = await handleResponseStore(updateCompany(payload, id), this);
+            if (this.success) {
                 this.company = data;
-            } catch (error) {
-                this.msg = error.message;
-                this.status = error.status_code;
-                return this.status;
+                cache.setItem('company', this.company);
+                // this.companies = this.companies.map((company) => (company.id === id ? data : company));
+
+                this.message = 'Compañia actualizada correctamente';
             }
+            this.loading = false;
+            return this.success;
         },
         async updateLogoCompany(payload, id) {
-            try {
-                const data = await updateLogoCompany(payload, id);
+            this.loading = true;
+            const { data } = await handleResponseStore(updateLogoCompany(payload, id), this);
+            if (this.success) {
                 this.company = data;
-            } catch (error) {
-                this.msg = error.message;
-                this.status = error.status_code;
-                return this.status;
             }
+            this.loading = false;
+            return this.success;
         },
         async deleteCompany(id) {
-            try {
-                const response = await deleteCompany(id);
-                return response;
-            } catch (error) {
-                this.msg = error.message;
-                this.status = error.status_code;
-                return this.status;
+            this.loading = true;
+            const { data } = await handleResponseStore(deleteCompany(id), this);
+            if (this.success) {
+                this.company = data;
             }
+            this.loading = false;
+            return this.success;
         }
     }
 });

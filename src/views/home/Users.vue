@@ -354,7 +354,7 @@ const uploadUsers = async (usersData) => {
         users.value = userStore.getUsers;
 
         // Manejar notificaciones para éxito y errores
-        if (response.success.length > 0) {
+        if (response.status) {
             toast.add({
                 severity: 'success',
                 summary: 'Éxito',

@@ -93,7 +93,7 @@ export const useUsersStore = defineStore('userStore', {
                 //     await parametersStore.createParameter(parameters);
                 // });
             }
-            return this.success;
+            return { status: this.success, success: data.success, errors: data.errors };
         },
         async updateUser(payload, id) {
             this.loading = true;

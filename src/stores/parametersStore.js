@@ -28,7 +28,7 @@ export const useParametersStore = defineStore('parametersStore', {
             this.loading = true;
             const { data } = await handleResponseStore(createParameter(payload), this);
             if (this.success) {
-                if (this.parameters !== null) {
+                if (this.parameters === null) {
                     await this.fetchParameters();
                 }
                 this.parameters.push(data);

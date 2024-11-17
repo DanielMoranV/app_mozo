@@ -57,6 +57,7 @@ export const useRolesStore = defineStore('rolesStore', {
             return this.success;
         },
         async fetchRolesComboBox() {
+            this.loading = true;
             const { data } = await handleResponseStore(getRoles(), this);
             if (this.success) {
                 cache.setItem('roles', data);

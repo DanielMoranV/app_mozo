@@ -19,6 +19,7 @@ import {
     uploadUnits
 } from '@/api';
 import cache from '@/utils/cache';
+import { handleResponseStore } from '@/utils/response';
 import { defineStore } from 'pinia';
 
 export const useProductsStore = defineStore('productStore', {
@@ -29,9 +30,10 @@ export const useProductsStore = defineStore('productStore', {
         category: cache.getItem('category'),
         units: cache.getItem('units'),
         unit: cache.getItem('unit'),
-        msg: '',
+        message: '',
         status: null,
-        loading: false
+        loading: false,
+        success: false
     }),
 
     getters: {
@@ -68,61 +70,55 @@ export const useProductsStore = defineStore('productStore', {
         //SECTION Productos
 
         async createProduct(payload) {
-            try {
-                payload.category_id = payload.category.id;
-                payload.unit_id = payload.unit.id;
-                const { data } = await createProduct(payload);
+            this.loading = true;
+            payload.category_id = payload.category.id;
+            payload.unit_id = payload.unit.id;
+            const { data } = await handleResponseStore(createProduct(payload), this);
+            if (this.success) {
                 this.product = data;
                 this.products.push(this.product);
                 cache.setItem('products', this.products);
-                return this.product;
-            } catch (error) {
-                this.msg = error.message || 'Error al crear el producto';
+                this.message = 'Producto creado correctamente';
+            } else {
                 this.product = null;
-                this.status = error.status_code || 500;
-                return this.status;
             }
+            return this.success;
         },
 
         async fetchProducts() {
-            try {
-                const { data } = await getProducts();
-                // Modificar el nombre de los productos para que sea más descriptivo
+            this.loading = true;
+
+            const { data } = await handleResponseStore(getProducts(), this);
+            // Modificar el nombre de los productos para que sea más descriptivo
+            if (this.success) {
                 const updatedProducts = data.map((product) => {
                     return {
                         ...product,
                         fullDescription: `${product.code} - ${product.name} - ${product.category.name}`
                     };
                 });
-
-                // Guardar en el cache y actualizar el estado
-                cache.setItem('products', updatedProducts);
                 this.products = updatedProducts;
-            } catch (error) {
-                this.msg = error.message;
-                this.products = null;
-                console.error(error);
-            } finally {
-                this.loading = false;
-                return this.products;
+                cache.setItem('products', this.products);
+            } else {
+                this.products = [];
             }
+            return this.success;
         },
 
         async fetchProduct(id) {
-            try {
-                const { data } = await getProduct(id);
-                cache.setItem('product', data);
+            this.loading = true;
+            const { data } = await handleResponseStore(getProduct(id), this);
+            if (this.success) {
                 this.product = data;
-            } catch (error) {
-                this.msg = error.message;
+                cache.setItem('product', this.product);
+            } else {
                 this.product = null;
-            } finally {
-                this.loading = false;
-                return this.product;
             }
+            return this.success;
         },
 
         async uploadProducts(payload) {
+            this.loading = true;
             const dataProducts = payload.map((product) => ({
                 code: String(product.code),
                 name: product.name,
@@ -133,48 +129,38 @@ export const useProductsStore = defineStore('productStore', {
             }));
 
             const requestData = { products: dataProducts };
-            try {
-                const { data } = await uploadProducts(requestData);
+            const { data } = await handleResponseStore(uploadProducts(requestData), this);
+            if (this.success) {
                 data.success.forEach((element) => this.products.push(element));
                 cache.setItem('products', this.products);
-                this.msg = data.message;
-                return data;
-            } catch (error) {
-                this.msg = error.message;
-                this.status = error.status_code;
-                return this.status;
             }
+            return { status: this.success, success: data.success, errors: data.errors };
         },
 
         async updateProduct(payload, id) {
-            try {
-                payload.category_id = payload.category.id;
-                payload.unit_id = payload.unit.id;
-                const { data } = await updateProduct(payload, id);
+            this.loading = true;
+            payload.category_id = payload.category.id;
+            payload.unit_id = payload.unit.id;
+            const { data } = await handleResponseStore(updateProduct(payload, id), this);
+            if (this.success) {
                 cache.setItem('product', data);
                 this.product = data;
-            } catch (error) {
-                this.msg = error.message;
+                this.message = 'Producto actualizado correctamente';
+            } else {
                 this.product = null;
-            } finally {
-                this.loading = false;
-                return this.product;
             }
+            return this.success;
         },
 
         async deleteProduct(id) {
-            try {
-                const response = await deleteProduct(id);
-                if (response.success) {
-                    this.products = this.products.filter((product) => product.id !== id);
-                    cache.setItem('products', this.products);
-                }
-                return response;
-            } catch (error) {
-                this.msg = error.message;
-                this.status = error.status_code;
-                return { success: false, status: this.status };
+            this.loading = true;
+            const { data } = await handleResponseStore(deleteProduct(id), this);
+            if (this.success) {
+                this.products = this.products.filter((product) => product.id !== id);
+                cache.setItem('products', this.products);
+                this.message = 'Producto eliminado correctamente';
             }
+            return this.success;
         },
 
         async updateListProducts(payload, id) {
@@ -191,114 +177,94 @@ export const useProductsStore = defineStore('productStore', {
 
         //SECTION Categorías
         async createCategory(payload) {
-            try {
-                const { data } = await createCategory(payload);
+            this.loading = true;
+            const { data } = await handleResponseStore(createCategory(payload), this);
+            if (this.success) {
                 this.category = data;
                 this.categories.push(this.category);
                 cache.setItem('categories', this.categories);
-                return this.category;
-            } catch (error) {
-                this.msg = error.message || 'Error al crear la categoría';
+                this.message = 'Categoría creada correctamente';
+            } else {
                 this.category = null;
-                this.status = error.status_code || 500;
-                return this.status;
             }
+            return this.success;
         },
 
         async fetchCategories() {
-            try {
-                const { data } = await getCategories();
+            this.loading = true;
+            const { data } = await handleResponseStore(getCategories(), this);
+            if (this.success) {
                 cache.setItem('categories', data);
                 this.categories = data;
-            } catch (error) {
-                this.msg = error.message;
+            } else {
                 this.categories = null;
-            } finally {
-                this.loading = false;
-                return this.categories;
             }
+            return this.success;
         },
 
         async fetchCategory(id) {
-            try {
-                const { data } = await getCategory(id);
+            this.loading = true;
+            const { data } = await handleResponseStore(getCategory(id), this);
+            if (this.success) {
                 cache.setItem('category', data);
                 this.category = data;
-            } catch (error) {
-                this.msg = error.message;
+            } else {
                 this.category = null;
-            } finally {
-                this.loading = false;
-                return this.category;
             }
+            return this.success;
         },
         async uploadCategories(payload) {
+            this.loading = true;
             const dataCategories = payload.map((category) => ({
                 name: category.name,
                 description: category.description
             }));
-
             const requestData = { categories: dataCategories };
-            console.log(requestData);
-
-            try {
-                const { data } = await uploadCategories(requestData);
-                this.msg = data.message;
-                return data;
-            } catch (error) {
-                console.log(error);
-                this.msg = error.message;
-                this.status = error.status_code;
-                return this.status;
+            const { data } = await handleResponseStore(uploadCategories(requestData), this);
+            if (this.success) {
+                data.success.forEach((element) => this.categories.push(element));
+                cache.setItem('categories', this.categories);
+                this.message = 'Categorías creadas correctamente';
             }
+            return this.success;
         },
 
         async updateCategory(payload, id) {
-            try {
-                const { data } = await updateCategory(payload, id);
+            this.loading = true;
+            const { data } = await handleResponseStore(updateCategory(payload, id), this);
+            if (this.success) {
                 cache.setItem('category', data);
                 this.category = data;
-            } catch (error) {
-                this.msg = error.message;
+                this.message = 'Categoría actualizada correctamente';
+            } else {
                 this.category = null;
-            } finally {
-                return this.category;
             }
+            return this.success;
         },
 
         async deleteCategory(id) {
-            try {
-                const response = await deleteCategory(id);
-                if (response.success) {
-                    this.categories = this.categories.filter((category) => category.id !== id);
-                    cache.setItem('categories', this.categories);
-                }
-                return response;
-            } catch (error) {
-                this.msg = error.message;
-                this.status = error.status_code;
-                return { success: false, status: this.status };
+            this.loading = true;
+            const { data } = await handleResponseStore(deleteCategory(id), this);
+            if (this.success) {
+                this.categories = this.categories.filter((category) => category.id !== id);
+                cache.setItem('categories', this.categories);
+                this.message = 'Categoría eliminada correctamente';
             }
+            return this.success;
         },
 
         async fetchCategoriesComboBox() {
-            try {
-                const { data } = await getCategories();
-
+            this.loading = true;
+            const { data } = await handleResponseStore(getCategories(), this);
+            if (this.success) {
                 cache.setItem('categories', data);
                 this.categories = data;
-
-                const categoriesCbx = data.map((category) => ({
+                data.map((category) => ({
                     label: category.name,
                     value: category.id
                 }));
-                return categoriesCbx;
-            } catch (error) {
-                this.msg = error.message;
-                return null;
-            } finally {
-                this.loading = false;
             }
+            return this.success;
         },
 
         async updateListCategories(payload, id) {
@@ -315,61 +281,55 @@ export const useProductsStore = defineStore('productStore', {
 
         //SECTION Unidades
         async createUnit(payload) {
-            try {
-                const { data } = await createUnit(payload);
+            this.loading = true;
+            const { data } = await handleResponseStore(createUnit(payload), this);
+            if (this.success) {
                 this.unit = data;
                 this.units.push(this.unit);
                 cache.setItem('units', this.units);
-                return this.unit;
-            } catch (error) {
-                this.msg = error.message || 'Error al crear la unidad';
+                this.message = 'Unidad creada correctamente';
+            } else {
                 this.unit = null;
-                this.status = error.status_code || 500;
-                return this.status;
             }
+            return this.success;
         },
 
         async fetchUnits() {
-            try {
-                const { data } = await getUnits();
+            this.loading = true;
+            const { data } = await handleResponseStore(getUnits(), this);
+            if (this.success) {
                 cache.setItem('units', data);
                 this.units = data;
-            } catch (error) {
-                this.msg = error.message;
+            } else {
                 this.units = null;
-            } finally {
-                this.loading = false;
-                return this.units;
             }
+            return this.success;
         },
 
         async fetchUnit(id) {
-            try {
-                const { data } = await getUnit(id);
+            this.loading = true;
+            const { data } = await handleResponseStore(getUnit(id), this);
+            if (this.success) {
                 cache.setItem('unit', data);
                 this.unit = data;
-            } catch (error) {
-                this.msg = error.message;
+            } else {
                 this.unit = null;
-            } finally {
-                this.loading = false;
-                return this.unit;
             }
+            return this.success;
         },
 
         async updateUnit(payload, id) {
-            try {
-                const { data } = await updateUnit(payload, id);
+            this.loading = true;
+            const { data } = await handleResponseStore(updateUnit(payload, id), this);
+            if (this.success) {
                 console.log(data);
                 cache.setItem('unit', data);
                 this.unit = data;
-            } catch (error) {
-                console.log(error);
-                this.msg = error.message;
+                this.message = 'Unidad actualizada correctamente';
+            } else {
                 this.unit = null;
-            } finally {
-                return this.unit;
             }
+            return this.success;
         },
 
         async deleteUnit(id) {

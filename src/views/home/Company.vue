@@ -5,7 +5,7 @@ import { useToast } from 'primevue/usetoast';
 import { onMounted, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 
-import { handleApiResponse } from '@/utils/response';
+import { handleResponseToast } from '@/utils/response';
 import { capitalizeName, restrictToNumbers, validateEmail, validatePhone, validateRUC } from '@/utils/validationUtils';
 
 const api_url = import.meta.env.VITE_API_URL;
@@ -86,16 +86,12 @@ const updateCompany = async () => {
         phone: company.value.phone
     };
 
-    try {
-        const response = await companiesStore.updateCompany(payload, company.value.id);
+    const success = await companiesStore.updateCompany(payload, company.value.id);
+    handleResponseToast(success, companiesStore.message, companiesStore.status, toast);
+    if (success) {
         authStore.updateUser(payload);
-        handleApiResponse(response, toast);
-    } catch (error) {
-        console.error(error);
-        toast.add({ severity: 'error', summary: 'Error', detail: 'Error al guardar usuario:', life: 3000 });
-    } finally {
-        isLoading.value = false;
     }
+    isLoading.value = false;
 };
 
 // Manejar carga de foto de perfil
@@ -114,8 +110,11 @@ const onUpload = async (request) => {
                 ...company.value
             }
         };
-        authStore.updateUser(payload);
-        toast.add({ severity: 'success', summary: 'Foto de perfil actualizada correctamente', life: 4000 });
+        const success = await companiesStore.updateLogoCompany(payload, company.value.id);
+        handleResponseToast(success, companiesStore.message, companiesStore.status, toast);
+        if (success) {
+            authStore.updateUser(payload);
+        }
     } catch (error) {
         console.error('Error al procesar la respuesta', error);
         toast.add({ severity: 'error', summary: 'Error', detail: 'Error al procesar la respuesta', life: 3000 });
