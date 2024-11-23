@@ -1,13 +1,13 @@
 <script setup>
 import { useProductsStore } from '@/stores/productsStore';
 import { exportToExcel } from '@/utils/excelUtils';
+import { handleResponseToast } from '@/utils/response';
 import { capitalizeName, findIndexById } from '@/utils/validationUtils';
 import { FilterMatchMode } from '@primevue/core/api';
 import ExcelJS from 'exceljs';
 import InputText from 'primevue/inputtext';
 import { useToast } from 'primevue/usetoast';
 import { onBeforeMount, onMounted, ref } from 'vue';
-//import { handleApiResponse } from '@/utils/response';
 
 // Estado de carga
 const isLoading = ref(false);
@@ -101,15 +101,12 @@ const saveCategory = async () => {
 
 // Actualizar producto
 const updateCategory = async () => {
-    try {
-        await productsStore.updateCategory(category.value, category.value.id);
+    const success = await productsStore.updateCategory(category.value, category.value.id);
+    handleResponseToast(success, productsStore.message, productsStore.status, toast);
+    if (success) {
         const categoryIndex = findIndexById(category.value.id, categories.value);
-
         categories.value[categoryIndex] = category.value;
         productsStore.updateListCategories(category.value, category.value.id);
-        toast.add({ severity: 'success', summary: 'Éxito', detail: 'Categorias actualizado', life: 3000 });
-    } catch (error) {
-        toast.add({ severity: 'error', summary: 'Error', detail: `Error al actualizar el categoría: ${error.message}`, life: 3000 });
     }
 };
 

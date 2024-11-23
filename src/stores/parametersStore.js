@@ -71,10 +71,11 @@ export const useParametersStore = defineStore('parametersStore', {
 
         async deleteParameter(id) {
             this.loading = true;
-            await handleResponseStore(deleteParameter(id), this);
+            const { data } = await handleResponseStore(deleteParameter(id), this);
             if (this.success) {
                 this.parameters = this.parameters.filter((parameter) => parameter.id == id);
                 cache.setItem('parameters', this.parameters);
+                this.message = `Parámetro ${data.id} eliminado correctamente`;
             }
             return this.success;
         }

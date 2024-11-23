@@ -66,7 +66,9 @@ export const useCompaniesStore = defineStore('companyStore', {
             this.loading = true;
             const { data } = await handleResponseStore(deleteCompany(id), this);
             if (this.success) {
-                this.company = data;
+                this.companies = this.companies.filter((company) => company.id !== id);
+                cache.setItem('companies', this.companies);
+                this.message = `Compañia ${data.company_name} eliminada correctamente`;
             }
             this.loading = false;
             return this.success;

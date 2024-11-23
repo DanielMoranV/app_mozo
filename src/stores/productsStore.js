@@ -158,7 +158,7 @@ export const useProductsStore = defineStore('productStore', {
             if (this.success) {
                 this.products = this.products.filter((product) => product.id !== id);
                 cache.setItem('products', this.products);
-                this.message = 'Producto eliminado correctamente';
+                this.message = `Producto ${data.name} eliminado correctamente`;
             }
             return this.success;
         },
@@ -248,21 +248,7 @@ export const useProductsStore = defineStore('productStore', {
             if (this.success) {
                 this.categories = this.categories.filter((category) => category.id !== id);
                 cache.setItem('categories', this.categories);
-                this.message = 'Categoría eliminada correctamente';
-            }
-            return this.success;
-        },
-
-        async fetchCategoriesComboBox() {
-            this.loading = true;
-            const { data } = await handleResponseStore(getCategories(), this);
-            if (this.success) {
-                cache.setItem('categories', data);
-                this.categories = data;
-                data.map((category) => ({
-                    label: category.name,
-                    value: category.id
-                }));
+                this.message = `Categoría ${data.name} eliminada correctamente`;
             }
             return this.success;
         },
@@ -333,37 +319,16 @@ export const useProductsStore = defineStore('productStore', {
         },
 
         async deleteUnit(id) {
-            try {
-                const response = await deleteUnit(id);
-                if (response.success) {
-                    this.units = this.units.filter((unit) => unit.id !== id);
-                    cache.setItem('units', this.units);
-                }
-                return response;
-            } catch (error) {
-                this.msg = error.message;
-                this.status = error.status_code;
-                return { success: false, status: this.status };
+            this.loading = true;
+            const { data } = await handleResponseStore(deleteUnit(id), this);
+            if (this.success) {
+                this.units = this.units.filter((unit) => unit.id !== id);
+                cache.setItem('units', this.units);
+                this.message = `Unidad ${data.name} eliminada correctamente`;
             }
+            return this.success;
         },
 
-        async fetchUnitsComboBox() {
-            try {
-                const { data } = await getUnits();
-                cache.setItem('units', data);
-                this.units = data;
-                const units = data.map((unit) => ({
-                    label: unit.symbol.toUpperCase(),
-                    value: unit.id
-                }));
-                return units;
-            } catch (error) {
-                this.msg = error.message;
-                return null;
-            } finally {
-                this.loading = false;
-            }
-        },
         async uploadUnits(payload) {
             const dataUnits = payload.map((unit) => ({
                 symbol: unit.symbol,
@@ -371,17 +336,13 @@ export const useProductsStore = defineStore('productStore', {
             }));
 
             const requestData = { units: dataUnits };
-
-            try {
-                const { data } = await uploadUnits(requestData);
-                this.msg = data.message;
-                return data;
-            } catch (error) {
-                console.log(error);
-                this.msg = error.message;
-                this.status = error.status_code;
-                return this.status;
+            const { data } = await handleResponseStore(uploadUnits(requestData), this);
+            if (this.success) {
+                data.success.forEach((element) => this.units.push(element));
+                cache.setItem('units', this.units);
+                this.message = 'Unidades creadas correctamente';
             }
+            return this.success;
         },
         async updateListUnits(payload, id) {
             const unitIndex = this.units.findIndex((unit) => unit.id === id);

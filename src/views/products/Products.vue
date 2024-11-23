@@ -2,13 +2,13 @@
 import { useAuthStore } from '@/stores/authStore';
 import { useProductsStore } from '@/stores/productsStore';
 import { exportToExcel } from '@/utils/excelUtils';
+import { handleResponseToast } from '@/utils/response';
 import { capitalizeName, findIndexById } from '@/utils/validationUtils';
 import { FilterMatchMode } from '@primevue/core/api';
 import ExcelJS from 'exceljs';
 import InputText from 'primevue/inputtext';
 import { useToast } from 'primevue/usetoast';
 import { onBeforeMount, onMounted, ref } from 'vue';
-//import { handleApiResponse } from '@/utils/response';
 
 // Estado de carga
 const isLoading = ref(false);
@@ -123,17 +123,12 @@ const saveProduct = async () => {
 
 // Actualizar producto
 const updateProduct = async () => {
-    try {
-        await productsStore.updateProduct(product.value, product.value.id);
-
+    const success = await productsStore.updateProduct(product.value, product.value.id);
+    handleResponseToast(success, productsStore.message, productsStore.status, toast);
+    if (success) {
         const productIndex = findIndexById(product.value.id, products.value);
-
         products.value[productIndex] = product.value;
-
         productsStore.updateListProducts(product.value, product.value.id);
-        toast.add({ severity: 'success', summary: 'Éxito', detail: 'Productos actualizado', life: 3000 });
-    } catch (error) {
-        toast.add({ severity: 'error', summary: 'Error', detail: `Error al actualizar el producto: ${error.message}`, life: 3000 });
     }
 };
 
@@ -144,19 +139,14 @@ const createProduct = async () => {
         id: user.value.id,
         name: user.value.name
     };
-    const response = await productsStore.createProduct(product.value);
-
-    if (response == 422 || response == 500) {
-        toast.add({ severity: 'error', summary: 'Error', detail: 'Producto ya registrado, error en validación', life: 3000 });
+    const success = await productsStore.createProduct(product.value);
+    handleResponseToast(success, productsStore.message, productsStore.status, toast);
+    if (success) {
         isLoading.value = false;
         loadingProducts.value = false;
         productDialog.value = false;
         product.value = {};
-        return;
     }
-
-    product.value = response;
-    toast.add({ severity: 'success', summary: 'Éxito', detail: 'Nuevo producto agregado', life: 3000 });
 };
 
 // Ciclos de vida del componente
@@ -166,11 +156,20 @@ onBeforeMount(() => {
 
 onMounted(async () => {
     loadingProducts.value = true;
-    products.value = productsStore.getProducts || (await productsStore.fetchProducts());
+    if (!productsStore.getProducts) {
+        await productsStore.fetchProducts();
+    }
+    products.value = productsStore.getProducts;
 
-    categories.value = productsStore.getCategoriesCbx || (await productsStore.fetchCategoriesComboBox());
+    if (!productsStore.getCategoriesCbx) {
+        await productsStore.fetchCategories();
+    }
+    categories.value = productsStore.getCategoriesCbx;
 
-    units.value = productsStore.getUnitsCbx || (await productsStore.fetchUnitsComboBox());
+    if (!productsStore.getUnitsCbx) {
+        await productsStore.fetchUnits();
+    }
+    units.value = productsStore.getUnitsCbx;
 
     const data = authStore.getUser;
     user.value = {
